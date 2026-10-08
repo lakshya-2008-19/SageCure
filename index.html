@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SageCure | Next-Gen AI Health Copilot</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] },
+          colors: { brand: { 50: '#f0f9ff', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' } }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border: 1px solid #e2e8f0; }
+    body.font-large { font-size: 110%; }
+    .wave-bar { animation: waveBar 1.2s ease-in-out infinite; }
+    @keyframes waveBar { 0%, 100% { height: 8px; } 50% { height: 32px; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen pb-20">
+
+  <!-- 1. LOGIN MODAL (Runs locally) -->
+  <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md transition-all">
+    <div class="w-full max-w-md bg-white rounded-3xl p-8 space-y-6 shadow-2xl">
+      <div class="text-center space-y-2">
+        <h2 class="text-2xl font-black text-brand-900">SageCure Portal</h2>
+        <p class="text-sm text-slate-500">Sign in to access your local AI health records.</p>
+      </div>
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-bold text-slate-700">Email Address</label>
+          <input type="email" id="auth-email" value="demo@sagecure.ai" required class="w-full p-3 bg-slate-50 border rounded-xl mt-1">
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700">Sign In ➔</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. HEADER -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">SC</div>
+        <div>
+          <h1 class="text-xl font-black text-slate-900">SageCure</h1>
+          <p class="text-xs text-emerald-600 font-bold">ABDM / FHIR Ready</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button onclick="document.body.classList.toggle('font-large')" class="px-3 py-1.5 rounded-xl border text-xs font-bold">A A+</button>
+        <button onclick="toggleLang()" class="px-3 py-1.5 rounded-xl bg-slate-100 text-xs font-bold">EN / हिंदी</button>
+        <span id="header-user" class="px-3 py-1.5 rounded-xl bg-brand-50 text-brand-800 text-xs font-bold">Guest</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3. DASHBOARD -->
+  <main class="max-w-5xl mx-auto px-4 mt-8 space-y-8">
+    <div class="text-center space-y-3">
+      <h2 id="main-title" class="text-3xl sm:text-5xl font-black text-slate-900">Next-Gen AI Health Copilot</h2>
+      <p id="main-sub" class="text-slate-600">Upload a report or ask a question. Processing runs entirely in your browser.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Upload Section -->
+      <div class="glass-card p-6 rounded-3xl space-y-4">
+        <h3 class="font-bold text-lg">1. Upload Report</h3>
+        <div class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center bg-slate-50 hover:bg-brand-50 cursor-pointer" onclick="document.getElementById('file-input').click()">
+          <p class="font-bold text-brand-600">Click to upload PDF/Image</p>
+          <input type="file" id="file-input" class="hidden" onchange="fileSelected(event)">
+          <p id="file-name" class="text-xs text-slate-500 mt-2">No file chosen</p>
+        </div>
+        <div class="pt-2">
+          <p class="text-xs font-bold text-slate-500 mb-2">Or test with a 1-click sample:</p>
+          <button onclick="loadSample()" class="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold">Load Diabetic Blood Panel Sample</button>
+        </div>
+      </div>
+
+      <!-- AI Action Section -->
+      <div class="glass-card p-6 rounded-3xl space-y-4">
+        <h3 class="font-bold text-lg">2. Ask & Analyze</h3>
+        <textarea id="query-input" rows="3" class="w-full p-4 bg-slate-50 border rounded-xl text-sm" placeholder="Ask a question about your report..."></textarea>
+        <button onclick="runLocalAI()" id="analyze-btn" class="w-full py-4 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700">
+          Analyze Report Locally ➔
+        </button>
+        <p class="text-xs text-center text-slate-400">Zero server cost. Data saves directly to Supabase.</p>
+      </div>
+
+    </div>
+
+    <!-- 4. RESULTS SECTION -->
+    <div id="results-box" class="hidden glass-card p-6 rounded-3xl space-y-6 mt-8 border-brand-200 bg-brand-50/30">
+      <div class="flex justify-between items-start border-b pb-4">
+        <div>
+          <h3 class="text-2xl font-black text-slate-900">AI Health Summary</h3>
+          <p class="text-sm text-emerald-600 font-bold" id="db-status">✓ Processed Locally</p>
+        </div>
+        <button onclick="playAudio()" class="px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-700 shadow-md">
+          🔊 Read Aloud
+        </button>
+      </div>
+      
+      <p id="summary-text" class="text-slate-800 leading-relaxed text-lg font-medium"></p>
+      
+      <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
+        <div class="p-4 bg-white rounded-xl border"><p class="text-xs text-slate-500">HbA1c</p><p class="font-bold text-rose-600">8.4% (High)</p></div>
+        <div class="p-4 bg-white rounded-xl border"><p class="text-xs text-slate-500">LDL Cholesterol</p><p class="font-bold text-rose-600">162 mg/dL</p></div>
+        <div class="p-4 bg-white rounded-xl border"><p class="text-xs text-slate-500">eGFR (Kidneys)</p><p class="font-bold text-emerald-600">92 (Normal)</p></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // --- SUPABASE CONFIGURATION ---
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let activeUser = null;
+    let currentLang = 'en';
+    let currentFile = null;
+    let synth = window.speechSynthesis;
+
+    const mockData = {
+      en: "Your blood test shows that your average blood sugar over the last 3 months is elevated (HbA1c is 8.4%). Your LDL cholesterol is also slightly high. Your kidneys are functioning perfectly. Please consult your doctor regarding diet and medication adjustments.",
+      hi: "आपकी खून की जांच से पता चलता है कि पिछले 3 महीनों का औसत ब्लड शुगर बढ़ा हुआ है (HbA1c 8.4%)। आपका खराब कोलेस्ट्रॉल भी थोड़ा अधिक है। आपकी किडनी बिल्कुल स्वस्थ काम कर रही है। कृपया अपने डॉक्टर से परामर्श लें।"
+    };
+
+    // --- LOGIC ---
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value;
+      activeUser = { email: email, name: email.split('@')[0] };
+      document.getElementById('header-user').textContent = activeUser.name;
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function fileSelected(e) {
+      if (e.target.files.length > 0) {
+        currentFile = e.target.files[0];
+        document.getElementById('file-name').textContent = currentFile.name;
+      }
+    }
+
+    function loadSample() {
+      currentFile = { name: "Diabetic_Panel_Report.pdf" };
+      document.getElementById('file-name').textContent = currentFile.name;
+    }
+
+    function toggleLang() {
+      currentLang = currentLang === 'en' ? 'hi' : 'en';
+      document.getElementById('main-title').textContent = currentLang === 'en' ? "Next-Gen AI Health Copilot" : "आधुनिक एआई स्वास्थ्य साथी";
+      document.getElementById('main-sub').textContent = currentLang === 'en' ? "Upload a report or ask a question. Processing runs entirely in your browser." : "रिपोर्ट अपलोड करें या सवाल पूछें। डेटा आपके डिवाइस पर ही प्रोसेस होता है।";
+      
+      if (!document.getElementById('results-box').classList.contains('hidden')) {
+        document.getElementById('summary-text').textContent = mockData[currentLang];
+      }
+    }
+
+    async function runLocalAI() {
+      if (!currentFile) return alert("Please upload a file or load a sample first.");
+      
+      const btn = document.getElementById('analyze-btn');
+      btn.textContent = "Processing Locally...";
+      btn.disabled = true;
+
+      // Simulate local AI processing time
+      setTimeout(async () => {
+        document.getElementById('results-box').classList.remove('hidden');
+        document.getElementById('summary-text').textContent = mockData[currentLang];
+        btn.textContent = "Analyze Report Locally ➔";
+        btn.disabled = false;
+
+        // Save directly to Supabase
+        await saveToDatabase(mockData.en);
+      }, 1500);
+    }
+
+    async function saveToDatabase(summary) {
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+        document.getElementById('db-status').textContent = "⚠️ Add Supabase Keys in code to save";
+        return;
+      }
+      
+      try {
+        const { error } = await supabase.from('medical_records').insert([{
+          user_id: activeUser.email,
+          ai_summary: summary,
+          created_at: new Date()
+        }]);
+        
+        if (!error) {
+          document.getElementById('db-status').textContent = "✓ Synced securely with Supabase";
+        }
+      } catch (err) {
+        console.error("Supabase Save Error:", err);
+      }
+    }
+
+    function playAudio() {
+      synth.cancel();
+      const text = document.getElementById('summary-text').textContent;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = currentLang === 'hi' ? 'hi-IN' : 'en-IN';
+      synth.speak(utterance);
+    }
+  </script>
+</body>
+</html>
