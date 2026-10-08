@@ -28,20 +28,20 @@
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans min-h-screen pb-20">
 
-  <!-- 1. LOGIN MODAL (Runs locally) -->
+  <!-- 1. LOGIN MODAL (Fixed to prevent page refresh) -->
   <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md transition-all">
     <div class="w-full max-w-md bg-white rounded-3xl p-8 space-y-6 shadow-2xl">
       <div class="text-center space-y-2">
         <h2 class="text-2xl font-black text-brand-900">SageCure Portal</h2>
         <p class="text-sm text-slate-500">Sign in to access your local AI health records.</p>
       </div>
-      <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div class="space-y-4">
         <div>
           <label class="text-xs font-bold text-slate-700">Email Address</label>
-          <input type="email" id="auth-email" value="demo@sagecure.ai" required class="w-full p-3 bg-slate-50 border rounded-xl mt-1">
+          <input type="email" id="auth-email" value="demo@sagecure.ai" class="w-full p-3 bg-slate-50 border rounded-xl mt-1">
         </div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700">Sign In ➔</button>
-      </form>
+        <button type="button" onclick="handleLogin(event)" class="w-full py-3 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700">Sign In ➔</button>
+      </div>
     </div>
   </div>
 
@@ -139,7 +139,7 @@
 
     // --- LOGIC ---
     function handleLogin(e) {
-      e.preventDefault();
+      if (e) e.preventDefault();
       const email = document.getElementById('auth-email').value;
       activeUser = { email: email, name: email.split('@')[0] };
       document.getElementById('header-user').textContent = activeUser.name;
